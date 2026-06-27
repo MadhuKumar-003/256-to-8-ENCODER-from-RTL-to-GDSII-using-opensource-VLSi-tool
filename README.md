@@ -112,16 +112,24 @@ Post-synthesis and placement power reports show excellent static efficiency with
   <img src="encoder_ss/power.png" width="75%" alt="OpenLane Power Summary Report Log">
 </p>
 
-### 💯 Manufacturability Signoff (DRC/LVS)
-The finished `encoder_256_to_8` physical layout clears all tapeout verification checks perfectly:
-* **Total Magic DRC Violations:** 0
-* **Layout vs. Netlist (LVS) Status:** Clean Match (All internal nets matched perfectly)
-* **Antenna Violations:** 0
+### 💯 Manufacturability Signoff (DRC/LVS) & Violation Analysis
+
+While the `encoder_256_to_8` macro achieves baseline logical compilation and LVS correctness, the extensive 256-bit input routing plane introduces specific manufacturability violations that must be resolved prior to tapeout signoff.
 
 <p align="center">
-  <img src="encoder_ss/drc.png" width="49%" alt="Final Manufacturability Report Log">
-  <img src="encoder_ss/magic.png" width="49%" alt="Magic Tool Layout Verification Check">
+  <img src="encoder_ss/drc.png" width="49%" alt="Final Encoder Manufacturability Signoff Report Log">
+  <img src="encoder_ss/magic.png" width="49%" alt="Magic Tool Layout Verification Execution Check">
 </p>
+
+---
+
+#### 🔍 Physical Diagnostics, Root Causes & Mitigation Strategies
+
+| Violation Type | Identified Cause | Architectural Mitigation & Resolution |
+| :--- | :--- | :--- |
+| **Antenna Violations** | The 256 long parallel input tracking nets accumulate high levels of static charge during the plasma etching foundry step, risking electrostatic discharge (ESD) failure across the gates of internal look-ahead standard cells. | **1. Enable Automated Diode Shunting:** Set `"DIODE_INSERTION_STRATEGY": 3` in your design `config.json` to automatically drop antenna diodes near vulnerable gate inputs. <br>**2. Metal Layer Bridging:** Force long structural nets to jump up to higher routing planes (`met3`/`met4`) using routing vias to break long antenna lines. |
+| **Magic DRC Violations** | Squeezing multi-stage priority reduction trees and valid indicator logic (`valid_out`) creates routing congestion along the standard cell grid rows, generating sub-micron spacing or wide-metal pitch errors. | **1. Adjust Base Floorplan Density:** Drop your placement constraint target to open up routing lanes: set `"PL_TARGET_DENSITY": 0.35` or lower.<br>**2. Increase Boundary Cell Padding:** Introduce minor spacing gaps between individual standard cells by setting `"CELL_PAD": 4`. |
+| **LVS Net Mismatch Issues** | Dense wire crossovers or localized routing congestion can cause broken interconnect traces or short circuits between adjacent parallel priority tracks. | **1. Expand Bounding Die Frame:** Scale up the hard floorplan boundary dimensions manually to ease overall routing strain: <br>`"FP_SIZING": "absolute"` <br>`"DIE_AREA": "0 0 140 140"`<br>**2. Strategic Pin Pitch Spacing:** Enforce strict minimum routing spacing parameters for boundary I/O pin assignments to avoid multi-track metal shorts. |
 
 ### 🛠️ Prototyping Target Profiles
 The design footprint is completely prepared and validated for multi-project prototyping wafer streams such as **Tiny Tapeout**.
